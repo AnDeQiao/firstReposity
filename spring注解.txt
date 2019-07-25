@@ -1,0 +1,365 @@
+## SSM框架相关注解的总结
+
+## 1.SpringMVC中返回值类型为string类型的详解**
+
+1. 如果方法上有@ResponseBody修饰的话，返回的就是这个字符串对象。一般为发送的ajax请求，需要将这个字符串数据响应给浏览器。
+2. 如果方法上没有@ResponseBody修饰的话，返回的string里面如果里面前面包括redirect:或者forward: 例如：return “forward:index.html”;或者
+   return “redirect:/namespace/toController”; 这两个为转发重定向。
+3. 如果方法上没有@ResponseBody修饰的话，返回的string里面只是一个简单的字符串内容，那么它就会用到视图解析器，返回到以视图解析器里面以什么为开头，什么为结尾的具体的页面上。
+
+## **一．Spring中的注解:*
+
+用于创建对象的注解：
+相当于：
+**@Component注解：**
+作用：把资源让spring来管理。相当于在xml中配置一个bean,次注解使用在实体bean的头部
+
+```
+@Component(“accountService”)
+public class AccountServiceImpl implements AccountService {}
+value = “accountService”;
+```
+
+相当于配置了bean标签的id属性，我们也可以不写value的值默认bean的id是当前类的类名首字母小写accountServiceImpl，单独配置value时，可以省略value。
+**@Controller @Service @Repository：**
+三个注解都是针对@Component注解的衍生注解，他们的作用及属性都是一模一的。 他们只不过是提供了更加明确的语义化。
+@Controller：一般用于表现层的注解。
+@Service：一般用于业务层的注解。
+@Repository：一般用于持久层的注解。
+细节：如果注解中有且只有一个属性要赋值时，且名称是value，value在赋值时可以不写。
+用于注入数据的：
+相当于：  
+**@Autowired：**
+作用： 自动按照类型注入。当使用注解注入属性时，set方法可以省略。它只能注入其他bean类型。当有多个类型匹配时，使用要注入的对象的变量名称作为bean的id，在spring容器查找，找到了也可以注入成功。找不到就报错。
+示例：
+
+```
+@Autowired
+private AccountDao accountDao;
+```
+
+**@Qualifier：**
+作用： 在自动按照类型注入的基础之上，再按照Bean的id注入。它在给字段注入时不能独立使用，必须和@Autowire一起使用，但是给方法参数注入时，可以独立使用。
+属性： value：指定bean的id。
+示例：
+
+```
+@Autowired
+@Qualifier(“accountDao2”)指定将accountDao注入实体的变量名
+private AccountDao accountDao;
+```
+
+给方法注入实参：
+
+```
+public JdbcTemplate craJdbcTemplate(@Qualifier(“dataSource”) DataSource dataSource){
+ }
+```
+
+**@Resource：**
+作用： 直接按照Bean的id注入。它也只能注入bean类型。
+属性：
+name：指定bean的id。
+示例：
+@Resource(name=“accountDao”)
+private AccountDao accountDao;
+**@Value：**
+作用： 注入基本数据类型和String类型数据的
+属性：
+value：用于指定值
+示例1：
+@Value(“zahngsan”)
+private String name;        name=“zahngsan”
+示例2：
+
+```
+//将配置文件jdbc.properties中的数据注解到
+@Value("KaTeX parse error: Expected '}', got 'EOF' at end of input: …       @Value("{jdbc.driver}")
+private String driverClass;
+@Value("jdbc.url")
+privateStringurl;
+@Value( "{jdbc.url}")
+private String url;
+private String username;
+@Value("${jdbc.password}")
+private String password;
+@Bean(name = “dataSource”)
+public DataSource createDataSource() throws Exception {
+ComboPooledDataSource ds = new ComboPooledDataSource();
+ds.setDriverClass(driverClass);
+ds.setJdbcUrl(url);
+ds.setUser(username);
+ds.setPassword(password);
+return ds;
+}
+}
+```
+
+**@Import：**
+作用：
+用于导入其他配置类，在引入其他配置类时，其他类上可以不用再写@Configuration注解。当然，写上也没问题。
+属性：
+value[]：用于指定其他配置类的字节码。
+示例代码：
+
+```
+@Configuration
+@ComponentScan(“cn.itcast”)
+@Import(value = { JdbcConfig.class })
+public class SpringConfiguration {
+}
+@Configuration//写不写都行
+@PropertySource(value = { “classpath:jdbc.properties” })
+public class JdbcConfig {
+}
+```
+
+## Spring整合junit：
+
+**@RunWith：**
+作用：
+替换掉junit的运行器,换成一个可以初始化spring容器的运行器。
+属性：
+value：单独配置时，value属性名称可以省略，配置SpringJUnit4ClassRunner.class来代替原来junit的运行器
+**@ContextConfiguration：**
+作用：
+加载配置类或者xml配置文件
+属性：
+value[]：用来指定xml配置文件的路径
+class[]: 用来指定配置类
+示例：自动的加载配置文件的信息
+//表示spring整合junit使用spring容器的运行器
+@RunWith(SpringJUnit4ClassRunner.class)
+//表示加载xml的配置的文件即可完成配置文件的加载
+
+```
+ @ContextConfiguration(locations={"classpath:applicationContext.xml"})  
+```
+
+## 配置Aop注解：
+
+**@EnableAspectJAutoProxy：**
+声明使用注解方式的AOP配置了：
+**@Configuration：**
+标注此类是一个配置的类相当于applicationContext.xml的加载配置的类：
+@ComponentScan(“com.itheima”)：
+标注此类相当于applicationContext.xml的加载配置的类，开启包的全局的扫描的方式：
+@Configuration//标注此类是一个配置的类
+@ComponentScan(“com.itheima”)//扫描的类
+@EnableAspectJAutoProxy//声明使用注解方式的AOP配置了
+public class SpringConfiguration {
+}
+**@Aspect：**
+指定当前类是通知类写在类上：
+@Aspect//声明这是一个切面类（通知类）里面配置的有具体的通知的方法
+@Service//将此类放到容器中
+public class Logger {
+}
+**@Before：**
+前置通知方法：
+@Before(“execution(* com.itheima.serviceImpl.*.*(…))”)
+public void beforePrintLog() {
+System.out.println(“前置通知执行了”);
+}
+**@after-returning：**
+后置通知方法：
+@AfterReturning(“execution(* com.itheima.serviceImpl.*.*(…))”)
+public void afterReturningPrintLog() {
+System.out.println(“后置通知执行了”);
+}
+**@after-throwing：**
+异常拦截通知方法：
+@AfterThrowing(“execution(* com.itheima.serviceImpl.*.*(…))”)
+public void afterThrowingPrintLog() {
+System.out.println(“异常通知执行了”);
+}
+**@after：**
+后通知方法：
+@AfterReturning(“execution(* com.itheima.serviceImpl.*.*(…))”)
+public void afterReturningPrintLog() {
+System.out.println(“后置通知执行了”);
+}
+**@PointCut：**
+抽取切点表达式：
+@Pointcut(“execution(* com.itheima.serviceImpl.*.*(…))”)
+public  void pt1(){
+}
+**@around：**
+环绕通知方法：
+/**
+\* 环绕通知
+\* 问题：
+\* 当配置完环绕通知之后，没有业务层方法执行（切入点方法执行）
+\* 分析：
+\* 通过动态代理的代码分析，我们现在的环绕通知没有明确的切入点方法调用
+\* 解决：
+\* spring框架为我们提供了一个接口，该接口可以作为环绕通知的方法参数来使用
+\* ProceedingJoinPoint。当环绕通知执行时，spring框架会为我们注入该接口的实现类。
+\* 它有一个方法proceed()，就相当于invoke，执行目标方法
+*
+
+\* spring的环绕通知：
+\* 它是spring为我们提供的一种可以在代码中手动控制增强方法何时执行的方式。
+*/
+@Around(“pt1()”)
+public Object around(ProceedingJoinPoint pjp) {
+try {
+System.out.println(“增强了前置通知！”);
+Object obj = pjp.proceed();
+System.out.println(“增强了后置通知！”);
+return obj;
+} catch (Throwable e) {
+System.out.println(“增强了异常通知！”);
+throw new RuntimeException(e);
+} finally {
+System.out.println(“增强了最终通知!”);
+}
+}
+
+## 基于注解的事务管理：
+
+**@Transactional：**
+@Transactional 注解可以被应用于接口定义和接口方法、类定义和类的 public 方法上。
+注解使用在类上表明此类下的所有的方法是一个基于注解的事务
+定义在接口上，只有接口的代理的实现的类可认为是基于注解的方法。因为注解不能被继承。
+然而，请注意仅仅 @Transactional 注解的出现不足于开启事务行为，它仅仅是一种元数据，能够被可以识别。要开启注解的植物管理 tx:annotation-driven/：
+SpringMvc中的注解：
+**@Controller：**
+Spring的Controller是Singleton的。这就意味着会被多个请求线程共享。因此，我们将控制器设计成无状态类：
+**@RequestMapping：**
+在类前面定义，则将url和类绑定；(如果该类里只有单个方法的话可以这样写，访问该地址直接调用该方法)：
+示例代码如下：
+@Controller
+@RequestMapping("/getUser")
+public class UserController {
+…
+…
+}
+定义在方法上则会为方法生成一个请求的路径：
+@RequestMapping("/hello")
+public String getHello() {
+return “index”;
+}
+可以携带请求的参数 Rest风格（占位符）的映射：
+@RequestMapping(value=“/user/{name}/{id} “)
+请求URL：http://localhost:8080/user/zhangsan/1001.do
+这种方式虽然和通配符“*”类似，却比通配符更加强大，占位符除了可以起到通配的作用，最精要的地方是在于它还可以传递参数。
+测试一:
+@RequestMapping(value=“show4/{name}/{id}”)
+public ModelAndView test4(){
+ModelAndView mv = new ModelAndView();
+mv.setViewName(“hello”);
+mv.addObject(“msg”, “占位符的映射:”);
+return mv;
+}
+与其相关：
+**@GetMapping**：相当于@RequestMapping（method = RequestMethod.GET）
+**@PostMapping**：相当于@RequestMapping（method = RequestMethod.POST）
+**@PutMapping**：相当于@RequestMapping（method = RequestMethod.PUT）
+**@DeleteMapping**：相当于@RequestMapping（method = RequestMethod.DELETE）
+**@PathVariable**：
+与 Rest风格（占位符）的映射一起使用获取参数数据：
+@RequestMapping(value=”/show4/{name}/{id}")
+public ModelAndView test4(@PathVariable(“name”)String name,@PathVariable(“id”)Long id){
+ModelAndView mv = new ModelAndView();
+mv.setViewName(“hello”);
+mv.addObject(“msg”, “占位符的映射:”+name+"…"+id);
+return mv;
+}
+@PathVariable(“userId”) Long id, @PathVariable(“name”)String name获取对应的参数：
+@PathVariable(“key”)中的key必须和对应的占位符中的参数名一致，而方法形参的参数名可任意取：
+@RequestParam：
+A） 常用来处理简单类型的绑定，通过Request.getParameter() 获取的String可直接转换为简单类型的情况（ String–> 简单类型的转换操作由ConversionService配置的转换器来完成）；因为使用request.getParameter()方式获取参数，所以可以处理get 方式中queryString的值，也可以处理post方式中 body data的值：
+B）用来处理Content-Type: 为 application/x-www-form-urlencoded编码的内容，提交方式GET、POST：
+GET模式下，这里使用了@PathVariable绑定输入参数，非常适合Restful风格。因为隐藏了参数与路径的关系，可以提升网站的安全性，静态化页面，降低恶意攻击风险。
+POST模式下，使用@RequestBody绑定请求对象，Spring会帮你进行协议转换，将Json、Xml协议转换成你需要的对象。
+C) 该注解有三个属性： value、required、defaultValue：
+value用来指定要传入值的id名称：
+required用来指示参数是否必须绑定：
+defaultValue用来指定在前端没有传值的情况下限定默认的值：
+@RequestMapping(value=“show19”)
+public String test19(Model model,@RequestParam(value=“name”)String name){
+model.addAttribute(“msg”, “使用@RequestParam接收到的参数为：”+name);
+return “hello”;
+}
+**@ResponseStatus**
+@ResponseStatus(value=HttpStatus.OK)：如果不响应页面，就需要响应状态：
+@RequestMapping(value = “show23”)
+@ResponseStatus(value=HttpStatus.OK)//不响应页面，就需要响应个状态码
+public void test23(@RequestParam(“name”)String name,
+@RequestParam(“age”)Integer age,
+@RequestParam(“isMarry”)Boolean isMarry, //可以将on或者1转换为true,0转换为false.
+@RequestParam(“income”)Float income,
+@RequestParam(“interests”)String[] interests) {
+StringBuffer sb = new StringBuffer();
+sb.append(“name:”+name+"\n");
+sb.append(“age:”+age+"\n");
+sb.append(“isMarry:”+isMarry+"\n");
+sb.append(“income:”+income+"\n");
+sb.append(“interests:[”);
+for (String inter : interests) {
+sb.append(inter+" “);
+}
+sb.append(”]");
+System.out.println(sb.toString());
+}
+@CookieValue使用方法同@RequestParam：获取cookie的值：
+@RequestMapping(value = “show22”)
+public String test22(Model model, @CookieValue(“JSESSIONID”)String jsessionid) {
+model.addAttribute(“msg”, “jsessionid：” + jsessionid);
+return “hello”;
+}
+**@ResponseBody：**
+只要有这个进行标记的话，所有都是将对象类型转换为json格式的字符串类型，返回的是转换后的字符串，包括返回值类型为string类型的数据，返回的都是一个对象。
+当一个处理请求的方法标记为@ResponseBody时，表示该方法需要输出其他视图json、xml），springmvc会通过默认的json转化器转化输出,但是需要引入相关的jar包：
+com.fasterxml.jackson.core
+jackson-databind
+/**
+\* 将list集合响应成json数据
+\* @return
+*/
+@RequestMapping(value=“show28”)
+@ResponseBody//将数据响应成json格式的数据
+public List test28() {
+
+```
+           List<User> list = new ArrayList<User>();
+            for(int i = 0;i< 20;i++) {
+               User user = new User();
+                  user.setId(i+1L);
+                  user.setUsername("zhangsan"+i);
+                  user.setName("张三"+i);
+                  user.setAge(18);
+                  list.add(user);
+                }          
+                return list;
+              }
+```
+
+**@RequestBody**：接收一个json并且转换成一个对象
+/**
+\* 将提交的json格式的数据封装到user对象中
+*
+\* @RequestBody()：自动将json数据序列化成一个user对象
+\* @param model
+\* @param user
+\* @return
+*/
+@RequestMapping(value=“show29”)
+public String test29(Model model,@RequestBody()User user) {
+model.addAttribute(“msg”, user);
+return “hello”;
+}
+**@RestController**：controller中的所有方法都默认是响应json格式的数据了。
+有时如果在一个Contoller中所有的方法都是用来响应json格式数据的，那么如果有多个方法，就需要在多个方法上使用@ResponseBody，这样太麻烦，springmvc提供了一个@RestController，将该注解使用在Controller类上，那么该controller中的所有方法都默认是响应json格式的数据了：
+
+--------------------- 本文来自 赵宪福 的CSDN 博客 ，全文地址请点击：https://blog.csdn.net/qq_35336425/article/details/82828445
+
+提示：点击文章底部阅读原文查看资源列表，免费领取资源，也可以留言你想要的资源，小编会及时更新！
+
+![img](https://mmbiz.qpic.cn/mmbiz_png/efZKjpRYfCfr1NyW0oHdDWichL9DhgGwu2c5oJJia9F6l4ueBgf0092vlyQEHeCY2WYYOhibciaLy29dC8p5ANEia9A/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+[阅读原文](https://mp.weixin.qq.com/mp/homepage?__biz=MzI1ODMxMDk1Mg%3D%3D&hid=7&sn=89e4909a0ec70ec210c628a500c1ad02#rd)
+
+微信扫一扫
+关注该公众号
